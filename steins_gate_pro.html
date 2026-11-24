@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#050505">
+<title>DIVERGENCE METER // FG-204</title>
+<style>
+  :root {
+    --bg-ambient: rgba(255, 85, 10, 0.14);
+    --wire-core: #fff6e5;
+    --wire-glow: #ff9429;
+    --wire-aura: rgba(255, 55, 0, 0.42);
+    --tube-tint: rgba(255, 95, 15, 0.16);
+    --chassis-accent: rgba(255, 160, 90, 0.45);
+    --ui-accent: #ff8c24;
+    --ui-accent-dim: rgba(255, 140, 36, 0.18);
+  }
+
+  /* 主题 2: VFD 荧光青绿 */
+  [data-theme="vfd"] {
+    --bg-ambient: rgba(0, 230, 180, 0.12);
+    --wire-core: #ebfffb;
+    --wire-glow: #18ffd0;
+    --wire-aura: rgba(0, 210, 165, 0.38);
+    --tube-tint: rgba(0, 220, 175, 0.14);
+    --chassis-accent: rgba(80, 240, 200, 0.45);
+    --ui-accent: #18ffd0;
+    --ui-accent-dim: rgba(24, 255, 208, 0.16);
+  }
+
+  /* 主题 3: IBN-5100 复古琥珀金 */
+  [data-theme="amber"] {
+    --bg-ambient: rgba(255, 175, 0, 0.13);
+    --wire-core: #fffbe6;
+    --wire-glow: #ffc42e;
+    --wire-aura: rgba(235, 145, 0, 0.40);
+    --tube-tint: rgba(255, 180, 20, 0.15);
+    --chassis-accent: rgba(255, 200, 80, 0.45);
+    --ui-accent: #ffc42e;
+    --ui-accent-dim: rgba(255, 196, 46, 0.18);
+  }
+
+  /* 主题 4: Reading Steiner 魔眼猩红 */
+  [data-theme="crimson"] {
+    --bg-ambient: rgba(255, 20, 35, 0.15);
+    --wire-core: #ffebeb;
+    --wire-glow: #ff2e3b;
+    --wire-aura: rgba(220, 0, 20, 0.45);
+    --tube-tint: rgba(255, 25, 40, 0.18);
+    --chassis-accent: rgba(255, 90, 100, 0.48);
+    --ui-accent: #ff3b47;
+    --ui-accent-dim: rgba(255, 59, 71, 0.18);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background-color: #040405;
+    overflow: hidden;
+    font-family: "SF Mono", "JetBrains Mono", "Consolas", "Courier New", monospace;
+    color: #d8d8dc;
+  }
+
+  /* 暗室桌面环境光 */
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background:
+      radial-gradient(ellipse 68% 52% at 50% 48%, var(--bg-ambient) 0%, rgba(10, 10, 12, 0.4) 58%, #020203 100%);
+    transition: background 0.5s ease, filter 0.3s ease;
+    overflow: hidden;
+  }
+
+  /* 桌面反射微光 */
+  .desk-reflection {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 860px;
+    height: 90px;
+    margin-left: -430px;
+    margin-top: 155px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, var(--bg-ambient) 0%, transparent 72%);
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  /* 主硬件机箱容器（横屏基准 980x360） */
+  .meter-unit {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 980px;
+    height: 360px;
+    margin-left: -490px;
+    margin-top: -180px;
+    -webkit-transform-origin: 50% 50%;
+    transform-origin: 50% 50%;
+    transition: transform 0.15s ease-out;
+  }
+
+  /* 竖屏双层机架模式（基准 520x630） */
+  .meter-unit.is-portrait {
+    width: 520px;
+    height: 630px;
+    margin-left: -260px;
+    margin-top: -315px;
+  }
+
+  .tubes-deck {
+    position: relative;
+    width: 100%;
+    text-align: center;
+    font-size: 0;
+  }
+
+  .tube-row {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .meter-unit.is-portrait .tube-row {
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  /* 单根辉光管组件 */
+  .tube-wrap {
+    display: inline-block;
+    vertical-align: bottom;
+    width: 104px;
+    margin: 0 7px;
+    position: relative;
+  }
+
+  /* 竖屏下中置霓虹分隔指示灯 */
+  .portrait-sep {
+    display: none;
+  }
+
+  .meter-unit.is-portrait .portrait-sep.active {
+    display: inline-block;
+    vertical-align: middle;
+    width: 16px;
+    height: 230px;
+    position: relative;
+  }
+
+  .sep-dot {
+    position: absolute;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+    background: var(--wire-core);
+    box-shadow: 0 0 6px var(--wire-core), 0 0 14px var(--wire-glow), 0 0 24px var(--wire-aura);
+    transition: opacity 0.12s ease;
+  }
+  .sep-dot.top { top: 82px; }
+  .sep-dot.bottom { top: 132px; }
+  .sep-dot.single { top: 175px; }
+  .sep-dot.dim { opacity: 0.14; box-shadow: none; }
+
+  /* 玻璃顶部的抽气封口尖端 */
+  .tube-tip {
+    width: 18px;
+    height: 11px;
+    margin: 0 auto -2px auto;
+    border-radius: 9px 9px 0 0;
+    border: 1.5px solid rgba(255, 220, 195, 0.22);
+    border-bottom: none;
+    background: linear-gradient(to right, rgba(255,255,255,0.14), rgba(255,255,255,0.02));
+  }
+
+  /* 硼硅酸盐玻璃管体 */
+  .glass-tube {
+    position: relative;
+    width: 100%;
+    height: 256px;
+    border-radius: 48px 48px 8px 8px;
+    border: 1.5px solid rgba(255, 215, 185, 0.2);
+    border-bottom: none;
+    background: linear-gradient(to right,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.02) 14%,
+      rgba(12, 10, 10, 0.72) 50%,
+      rgba(255, 255, 255, 0.02) 86%,
+      rgba(255, 255, 255, 0.08) 100%);
+    box-shadow:
+      inset 0 12px 20px rgba(255, 235, 215, 0.09),
+      inset 0 -16px 28px var(--tube-tint),
+      0 6px 24px rgba(0, 0, 0, 0.92);
+    overflow: hidden;
+    transition: box-shadow 0.4s ease;
+  }
+
+  .meter-unit.is-portrait .glass-tube {
+    height: 224px;
+  }
+
+  /* 内部六角阳极金属丝网 */
+  .anode-mesh {
+    position: absolute;
+    top: 16px;
+    left: 9px;
+    right: 9px;
+    bottom: 10px;
+    border-radius: 38px 38px 4px 4px;
+    background-image:
+      radial-gradient(rgba(255, 180, 120, 0.11) 1px, transparent 1px),
+      radial-gradient(rgba(255, 180, 120, 0.07) 1px, transparent 1px);
+    background-size: 8px 8px;
+    background-position: 0 0, 4px 4px;
+    opacity: 0.75;
+    pointer-events: none;
+  }
+
+  /* 玻璃管壁弧形高光 */
+  .glass-glare-left {
+    position: absolute;
+    top: 24px;
+    left: 10px;
+    width: 5px;
+    height: 196px;
+    border-radius: 4px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.22), rgba(255,255,255,0.03));
+    pointer-events: none;
+  }
+
+  .glass-glare-right {
+    position: absolute;
+    top: 32px;
+    right: 9px;
+    width: 2px;
+    height: 180px;
+    border-radius: 2px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.12), transparent);
+    pointer-events: none;
+  }
+
+  /* 内部气体辉光晕 */
+  .plasma-aura {
+    position: absolute;
+    top: 28px;
+    left: 6px;
+    right: 6px;
+    bottom: 16px;
+    border-radius: 44px;
+    background: radial-gradient(ellipse at center, var(--tube-tint) 0%, transparent 72%);
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  /* 矢量灯丝画布 */
+  .filament-svg {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .ghost-wires {
+    fill: none;
+    stroke: rgba(135, 85, 55, 0.15);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wire-aura {
+    fill: none;
+    stroke: var(--wire-aura);
+    stroke-width: 13;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 0.35s ease;
+  }
+
+  .wire-glow {
+    fill: none;
+    stroke: var(--wire-glow);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 0.35s ease;
+  }
+
+  .wire-core {
+    fill: none;
+    stroke: var(--wire-core);
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 0.35s ease;
+  }
+
+  .dot-aura { fill: var(--wire-aura); }
+  .dot-glow { fill: var(--wire-glow); }
+  .dot-core { fill: var(--wire-core); }
+
+  /* 陶瓷与黄铜管座 */
+  .tube-socket {
+    position: relative;
+    width: 106px;
+    height: 26px;
+    margin: 0 auto;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(to right, #161618 0%, #38383e 28%, #222226 72%, #101012 100%);
+    border-top: 2px solid #594f47;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.9);
+  }
+
+  .tube-socket:after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    right: 10px;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #4a3b2c, #8c6d4f, #4a3b2c);
+    opacity: 0.7;
+  }
+
+  /* 拉丝金属重型底座 */
+  .chassis-bar {
+    position: relative;
+    width: 964px;
+    height: 52px;
+    margin: 0 auto;
+    border-radius: 5px;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px),
+      linear-gradient(to bottom, #2c2c32 0%, #18181c 48%, #0c0c0e 100%);
+    border-top: 1px solid #524c46;
+    border-bottom: 2px solid #050506;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.96);
+    cursor: pointer;
+  }
+
+  .meter-unit.is-portrait .chassis-bar {
+    width: 488px;
+    height: 48px;
+  }
+
+  /* 内六角工业螺丝 */
+  .screw {
+    position: absolute;
+    top: 18px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #5e5e66, #1a1a1e);
+    border: 1px solid #0a0a0c;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);
+  }
+  .meter-unit.is-portrait .screw { top: 16px; }
+  .screw.left { left: 18px; }
+  .screw.right { right: 18px; }
+  .screw:after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 2px;
+    right: 2px;
+    height: 1.5px;
+    background: #0e0e10;
+    transform: rotate(-32deg);
+  }
+
+  /* 铭牌丝印文字 */
+  .chassis-plate {
+    display: inline-block;
+    margin-top: 11px;
+    padding: 4px 18px;
+    border-radius: 2px;
+    background: rgba(8, 8, 10, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 11px;
+    letter-spacing: 3.5px;
+    color: var(--chassis-accent);
+    text-transform: uppercase;
+    transition: color 0.35s ease;
+  }
+
+  .meter-unit.is-portrait .chassis-plate {
+    margin-top: 10px;
+    padding: 4px 12px;
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  /* 极简悬浮控制触发器 */
+  .hud-trigger {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 40;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(24, 24, 28, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--ui-accent);
+    font-size: 16px;
+    line-height: 36px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0.35;
+    transition: opacity 0.3s ease, transform 0.2s ease, border-color 0.3s ease;
+  }
+
+  .hud-trigger:hover, .hud-trigger.active {
+    opacity: 1;
+    border-color: var(--ui-accent);
+  }
+
+  .hud-trigger.idle-hidden {
+    opacity: 0.08;
+  }
+
+  /* 未来道具研究所控制面板 (HUD) */
+  .control-dock {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    z-index: 50;
+    width: 92%;
+    max-width: 680px;
+    transform: translate(-50%, 130%);
+    background: rgba(16, 16, 20, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 2px solid var(--ui-accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.92);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease;
+  }
+
+  .control-dock.open {
+    transform: translate(-50%, 0);
+  }
+
+  .dock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #8e8e98;
+  }
+
+  .dock-close {
+    background: none;
+    border: none;
+    color: #8e8e98;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 6px;
+  }
+
+  .dock-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .btn-pill {
+    flex: 1 1 auto;
+    min-width: 74px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: #b8b8c2;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+
+  .btn-pill:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #ffffff;
+  }
+
+  .btn-pill.active {
+    background: var(--ui-accent-dim);
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
+    font-weight: bold;
+  }
+
+  .dock-row-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .theme-swatches {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .swatch.active {
+    transform: scale(1.18);
+    border-color: #ffffff;
+  }
+
+  .swatch.orange { background: #ff7b1c; }
+  .swatch.vfd { background: #18ffd0; }
+  .swatch.amber { background: #ffc42e; }
+  .swatch.crimson { background: #ff2e3b; }
+
+  .utility-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .btn-mini {
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #b0b0ba;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .btn-mini.active {
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
+  }
+
+  /* 轻提示 Toast */
+  .toast-msg {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    padding: 6px 16px;
+    border-radius: 20px;
+    background: rgba(15, 15, 18, 0.88);
+    border: 1px solid var(--ui-accent);
+    color: var(--ui-accent);
+    font-size: 11px;
+    letter-spacing: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .toast-msg.show {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="desk-reflection" id="deskReflection"></div>
+
+  <div class="meter-unit" id="meterUnit">
+    <div class="tubes-deck" id="tubesDeck">
+      <!-- 上排（横屏为左4管，竖屏为上层4管） -->
+      <div class="tube-row" id="rowTop"></div>
+      <!-- 下排（横屏为右4管，竖屏为下层4管） -->
+      <div class="tube-row" id="rowBottom"></div>
+    </div>
+
+    <div class="chassis-bar" id="chassisBar" title="点击打开控制台">
+      <div class="screw left"></div>
+      <div class="chassis-plate" id="statusLabel">DIVERGENCE METER // CLOCK</div>
+      <div class="screw right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 右下角极简设置按钮 -->
+<div class="hud-trigger" id="hudTrigger" title="设置控制台">⚙</div>
+
+<!-- 悬浮控制台 -->
+<div class="control-dock" id="controlDock">
+  <div class="dock-header">
+    <span>FUTURE GADGET LAB // FG-204</span>
+    <button class="dock-close" id="dockClose">✕</button>
+  </div>
+
+  <!-- 模式选择 -->
+  <div class="dock-grid">
+    <button class="btn-pill active" data-mode="clock">时钟 CLOCK</button>
+    <button class="btn-pill" data-mode="divergence">世界线 METER</button>
+    <button class="btn-pill" data-mode="date">日期 DATE</button>
+    <button class="btn-pill" data-mode="timer">番茄钟 TIMER</button>
+  </div>
+
+  <!-- 快捷功能操作 -->
+  <div class="dock-grid">
+    <button class="btn-pill" id="btnScramble">⚡ 世界线变动</button>
+    <button class="btn-pill" id="btnSubAction">24H / 12H</button>
+    <button class="btn-pill" id="btnTimerReset" style="display:none;">↺ 重置 25:00</button>
+  </div>
+
+  <!-- 颜色主题 & 硬件开关 -->
+  <div class="dock-row-bottom">
+    <div class="theme-swatches">
+      <div class="swatch orange active" data-theme="orange" title="IN-18 经典氖气橙"></div>
+      <div class="swatch vfd" data-theme="vfd" title="VFD 荧光青绿"></div>
+      <div class="swatch amber" data-theme="amber" title="IBN-5100 琥珀金"></div>
+      <div class="swatch crimson" data-theme="crimson" title="Reading Steiner 猩红"></div>
+    </div>
+
+    <div class="utility-btns">
+      <button class="btn-mini" id="btnSound">🔇 音效关</button>
+      <button class="btn-mini" id="btnDim">🔆 100%</button>
+      <button class="btn-mini" id="btnFullscreen">⛶ 全屏</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-msg" id="toastMsg">EL PSY KONGROO</div>
+
+<script>
+(function() {
+  // 矢量钨丝灯管数字路径库 (ViewBox: 0 0 80 140)
+  var WIRE_PATHS = {
+    '0': 'M 40 22 C 58 22, 62 42, 62 70 C 62 98, 58 118, 40 118 C 22 118, 18 98, 18 70 C 18 42, 22 22, 40 22 Z',
+    '1': 'M 30 34 L 42 22 L 42 118 M 28 118 L 56 118',
+    '2': 'M 21 44 C 21 26, 33 22, 42 22 C 54 22, 61 30, 61 43 C 61 58, 46 72, 20 118 L 62 118',
+    '3': 'M 22 23 L 59 23 L 38 62 C 54 62, 62 73, 62 90 C 62 108, 51 118, 38 118 C 27 118, 20 112, 18 103',
+    '4': 'M 51 118 L 51 22 L 18 86 L 64 86',
+    '5': 'M 58 23 L 25 23 L 23 63 C 28 59, 34 57, 41 57 C 54 57, 62 68, 62 88 C 62 108, 52 118, 38 118 C 26 118, 20 111, 18 102',
+    '6': 'M 54 24 C 34 28, 19 52, 19 86 C 19 107, 29 118, 41 118 C 54 118, 62 107, 62 90 C 62 74, 53 64, 41 64 C 29 64, 21 72, 19 84',
+    '7': 'M 20 32 L 20 23 L 61 23 L 33 118',
+    '8': 'M 40 66 C 28 66, 22 57, 22 44 C 22 30, 30 22, 40 22 C 50 22, 58 30, 58 44 C 58 57, 52 66, 40 66 Z M 40 66 C 26 66, 19 77, 19 93 C 19 109, 28 118, 40 118 C 52 118, 61 109, 61 93 C 61 77, 54 66, 40 66 Z',
+    '9': 'M 26 116 C 46 112, 61 88, 61 54 C 61 33, 51 22, 39 22 C 26 22, 18 33, 18 50 C 18 66, 27 76, 39 76 C 51 76, 59 68, 61 56',
+    '-': 'M 24 70 L 56 70',
+    ' ': ''
+  };
+
+  var stage = document.getElementById('stage');
+  var meterUnit = document.getElementById('meterUnit');
+  var deskReflection = document.getElementById('deskReflection');
+  var rowTop = document.getElementById('rowTop');
+  var rowBottom = document.getElementById('rowBottom');
+  var statusLabel = document.getElementById('statusLabel');
+  var hudTrigger = document.getElementById('hudTrigger');
+  var controlDock = document.getElementById('controlDock');
+  var toastMsg = document.getElementById('toastMsg');
+
+  var tubes = [];
+  var sepTop = null;
+  var sepBottom = null;
+
+  // 创建单根辉光管 DOM
+  function createTubeElement(index) {
+    var wrap = document.createElement('div');
+    wrap.className = 'tube-wrap';
+
+    var tip = document.createElement('div');
+    tip.className = 'tube-tip';
+
+    var glass = document.createElement('div');
+    glass.className = 'glass-tube';
+
+    var mesh = document.createElement('div');
+    mesh.className = 'anode-mesh';
+
+    var aura = document.createElement('div');
+    aura.className = 'plasma-aura';
+
+    var glareL = document.createElement('div');
+    glareL.className = 'glass-glare-left';
+
+    var glareR = document.createElement('div');
+    glareR.className = 'glass-glare-right';
+
+    // 构建矢量 SVG 灯丝层
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 80 140');
+    svg.setAttribute('class', 'filament-svg');
+
+    // 未点亮的层叠金属数字阴影 (8, 3, 0)
+    var ghostGroup = document.createElementNS(svgNS, 'g');
+    ghostGroup.setAttribute('class', 'ghost-wires');
+    ['8', '3', '0'].forEach(function(num) {
+      var gp = document.createElementNS(svgNS, 'path');
+      gp.setAttribute('d', WIRE_PATHS[num]);
+      ghostGroup.appendChild(gp);
+    });
+
+    var pAura = document.createElementNS(svgNS, 'path');
+    pAura.setAttribute('class', 'wire-aura');
+
+    var pGlow = document.createElementNS(svgNS, 'path');
+    pGlow.setAttribute('class', 'wire-glow');
+
+    var pCore = document.createElementNS(svgNS, 'path');
+    pCore.setAttribute('class', 'wire-core');
+
+    // 专属小数点发光圆球
+    var dotGroup = document.createElementNS(svgNS, 'g');
+    dotGroup.style.display = 'none';
+    var cAura = document.createElementNS(svgNS, 'circle');
+    cAura.setAttribute('cx', '40'); cAura.setAttribute('cy', '110'); cAura.setAttribute('r', '10');
+    cAura.setAttribute('class', 'dot-aura');
+    var cGlow = document.createElementNS(svgNS, 'circle');
+    cGlow.setAttribute('cx', '40'); cGlow.setAttribute('cy', '110'); cGlow.setAttribute('r', '5.5');
+    cGlow.setAttribute('class', 'dot-glow');
+    var cCore = document.createElementNS(svgNS, 'circle');
+    cCore.setAttribute('cx', '40'); cCore.setAttribute('cy', '110'); cCore.setAttribute('r', '2.5');
+    cCore.setAttribute('class', 'dot-core');
+    dotGroup.appendChild(cAura);
+    dotGroup.appendChild(cGlow);
+    dotGroup.appendChild(cCore);
+
+    svg.appendChild(ghostGroup);
+    svg.appendChild(pAura);
+    svg.appendChild(pGlow);
+    svg.appendChild(pCore);
+    svg.appendChild(dotGroup);
+
+    var socket = document.createElement('div');
+    socket.className = 'tube-socket';
+
+    glass.appendChild(mesh);
+    glass.appendChild(aura);
+    glass.appendChild(svg);
+    glass.appendChild(glareL);
+    glass.appendChild(glareR);
+
+    wrap.appendChild(tip);
+    wrap.appendChild(glass);
+    wrap.appendChild(socket);
+
+    tubes.push({
+      pAura: pAura,
+      pGlow: pGlow,
+      pCore: pCore,
+      dotGroup: dotGroup,
+      aura: aura,
+      lastChar: null
+    });
+
+    return wrap;
+  }
+
+  // 创建竖屏中置分隔指示灯
+  function createPortraitSeparator(type) {
+    var sep = document.createElement('div');
+    sep.className = 'portrait-sep';
+    if (type === 'colon') {
+      var d1 = document.createElement('div');
+      d1.className = 'sep-dot top';
+      var d2 = document.createElement('div');
+      d2.className = 'sep-dot bottom';
+      sep.appendChild(d1);
+      sep.appendChild(d2);
+    } else {
+      var d = document.createElement('div');
+      d.className = 'sep-dot single';
+      sep.appendChild(d);
+    }
+    return sep;
+  }
+
+  // 初始化 8 根辉光管分布（上排 4 根，下排 4 根）
+  for (var i = 0; i < 4; i++) {
+    if (i === 2) {
+      sepTop = createPortraitSeparator('colon');
+      rowTop.appendChild(sepTop);
+    }
+    rowTop.appendChild(createTubeElement(i));
+  }
+  for (var j = 4; j < 8; j++) {
+    if (j === 6) {
+      sepBottom = createPortraitSeparator('dot');
+      rowBottom.appendChild(sepBottom);
+    }
+    rowBottom.appendChild(createTubeElement(j));
+  }
+
+  // 状态变量
+  var state = {
+    mode: 'clock',        // 'clock' | 'divergence' | 'date' | 'timer'
+    is24H: true,
+    isPortrait: false,
+    isScrambling: false,
+    scrambleTimer: null,
+    worldLineIdx: 0,
+    soundEnabled: false,
+    brightnessLevel: 0,   // 0: 100%, 1: 70%, 2: 40%
+    // 番茄钟/计时器状态 (默认 25 分钟 = 1500 秒)
+    timerTotalSec: 1500,
+    timerRemainSec: 1500,
+    timerRunning: false,
+    timerLastTick: 0
+  };
+
+  var WORLD_LINES = [
+    { val: '1.048596', name: 'STEINS GATE' },
+    { val: '0.571024', name: 'ALPHA LINE' },
+    { val: '1.130205', name: 'BETA LINE' },
+    { val: '0.337187', name: 'ALPHA SHIFT' },
+    { val: '0.000000', name: 'ORIGIN LINE' },
+    { val: '1.129848', name: 'BETA SHIFT' },
+    { val: '3.141592', name: 'LAB EASTER EGG' }
+  ];
+
+  // 轻提示函数
+  var toastTimer = null;
+  function showToast(text) {
+    toastMsg.textContent = text;
+    toastMsg.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() {
+      toastMsg.classList.remove('show');
+    }, 1800);
+  }
+
+  // Web Audio 继电器与高电压合成音效
+  var audioCtx = null;
+  function playClickSound(freq, dur, vol) {
+    if (!state.soundEnabled) return;
+    try {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq || 1100, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + (dur || 0.025));
+
+      gain.gain.setValueAtTime(vol || 0.05, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.025));
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + (dur || 0.025));
+    } catch (e) {}
+  }
+
+  // 响应式布局与屏幕等比缩放
+  var pixelOffsetX = 0;
+  var pixelOffsetY = 0;
+
+  function updateLayoutScale() {
+    var w = window.innerWidth || document.documentElement.clientWidth;
+    var h = window.innerHeight || document.documentElement.clientHeight;
+    state.isPortrait = (h > w * 1.12) && (w < 768);
+
+    if (state.isPortrait) {
+      meterUnit.classList.add('is-portrait');
+      deskReflection.style.display = 'none';
+      var scaleP = Math.min((w * 0.92) / 520, (h * 0.86) / 630);
+      meterUnit.style.transform = 'translate(' + pixelOffsetX + 'px,' + pixelOffsetY + 'px) scale(' + scaleP + ')';
+    } else {
+      meterUnit.classList.remove('is-portrait');
+      deskReflection.style.display = 'block';
+      var scaleL = Math.min((w * 0.93) / 980, (h * 0.86) / 360);
+      meterUnit.style.transform = 'translate(' + pixelOffsetX + 'px,' + pixelOffsetY + 'px) scale(' + scaleL + ')';
+    }
+  }
+
+  updateLayoutScale();
+  window.addEventListener('resize', updateLayoutScale, false);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(updateLayoutScale, 120);
+  }, false);
+
+  // 防烧屏微位移（每 3 分钟缓慢移动 1~2px）
+  setInterval(function() {
+    pixelOffsetX = Math.round((Math.random() - 0.5) * 4);
+    pixelOffsetY = Math.round((Math.random() - 0.5) * 4);
+    updateLayoutScale();
+  }, 180000);
+
+  // 屏幕常亮 Wake Lock API
+  function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').catch(function() {});
+    }
+  }
+  requestWakeLock();
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
+
+  // 渲染 8 根灯管内容
+  function renderTubes(chars, blinkDim, portraitSepMode) {
+    // 处理竖屏分隔符显示状态
+    if (state.isPortrait && portraitSepMode) {
+      sepTop.className = 'portrait-sep active';
+      sepBottom.className = 'portrait-sep active';
+      var dots = sepTop.querySelectorAll('.sep-dot');
+      for (var d = 0; d < dots.length; d++) {
+        dots[d].className = 'sep-dot ' + (d === 0 ? 'top' : 'bottom') + (blinkDim ? ' dim' : '');
+      }
+      var bDot = sepBottom.querySelector('.sep-dot');
+      if (bDot) bDot.className = 'sep-dot single' + (portraitSepMode === 'clock' ? ' dim' : '');
+    } else {
+      sepTop.className = 'portrait-sep';
+      sepBottom.className = 'portrait-sep';
+    }
+
+    for (var i = 0; i < 8; i++) {
+      var ch = chars[i] || ' ';
+      var t = tubes[i];
+
+      if (ch === '.') {
+        t.pAura.setAttribute('d', '');
+        t.pGlow.setAttribute('d', '');
+        t.pCore.setAttribute('d', '');
+        t.dotGroup.style.display = 'block';
+        t.dotGroup.style.opacity = blinkDim ? '0.16' : '1';
+        t.aura.style.opacity = blinkDim ? '0.15' : '0.85';
+      } else {
+        t.dotGroup.style.display = 'none';
+        var pathData = WIRE_PATHS[ch] || '';
+        if (t.lastChar !== ch) {
+          t.pAura.setAttribute('d', pathData);
+          t.pGlow.setAttribute('d', pathData);
+          t.pCore.setAttribute('d', pathData);
+        }
+        t.aura.style.opacity = (ch === ' ' || ch === '-') ? '0.2' : '1';
+      }
+      t.lastChar = ch;
+    }
+  }
+
+  function pad2(n) {
+    return n < 10 ? '0' + n : '' + n;
+  }
+
+  // 计算当前模式下应显示的 8 位字符
+  function getCurrentFrameData() {
+    var now = new Date();
+    var blinkDim = now.getMilliseconds() > 520;
+
+    if (state.mode === 'clock') {
+      var rawH = now.getHours();
+      if (!state.is24H) {
+        rawH = rawH % 12;
+        if (rawH === 0) rawH = 12;
+      }
+      var h = pad2(rawH);
+      var m = pad2(now.getMinutes());
+      var s = pad2(now.getSeconds());
+
+      if (state.isPortrait) {
+        // 竖屏：上排 HH : MM，下排 -- SS
+        return {
+          chars: [h[0], h[1], m[0], m[1], '-', '-', s[0], s[1]],
+          blinkDim: blinkDim,
+          sepMode: 'clock'
+        };
+      } else {
+        // 横屏：HH . MM . SS
+        return {
+          chars: [h[0], h[1], '.', m[0], m[1], '.', s[0], s[1]],
+          blinkDim: blinkDim,
+          sepMode: null
+        };
+      }
+    }
+
+    if (state.mode === 'divergence') {
+      var wl = WORLD_LINES[state.worldLineIdx].val;
+      return {
+        chars: wl.split(''),
+        blinkDim: false,
+        sepMode: null
+      };
+    }
+
+    if (state.mode === 'date') {
+      var yy = pad2(now.getFullYear() % 100);
+      var mo = pad2(now.getMonth() + 1);
+      var dd = pad2(now.getDate());
+      if (state.isPortrait) {
+        return {
+          chars: ['2', '0', yy[0], yy[1], mo[0], mo[1], dd[0], dd[1]],
+          blinkDim: false,
+          sepMode: 'date'
+        };
+      } else {
+        return {
+          chars: [yy[0], yy[1], '.', mo[0], mo[1], '.', dd[0], dd[1]],
+          blinkDim: false,
+          sepMode: null
+        };
+      }
+    }
+
+    if (state.mode === 'timer') {
+      var total = Math.max(0, Math.ceil(state.timerRemainSec));
+      var tm = pad2(Math.floor(total / 60));
+      var ts = pad2(total % 60);
+      var cs = pad2(Math.floor((state.timerRemainSec % 1) * 100));
+      if (state.isPortrait) {
+        return {
+          chars: [tm[0], tm[1], ts[0], ts[1], '-', '-', cs[0], cs[1]],
+          blinkDim: state.timerRunning ? blinkDim : false,
+          sepMode: 'clock'
+        };
+      } else {
+        return {
+          chars: [tm[0], tm[1], '.', ts[0], ts[1], '.', cs[0], cs[1]],
+          blinkDim: state.timerRunning ? blinkDim : false,
+          sepMode: null
+        };
+      }
+    }
+  }
+
+  // 世界线数字乱跳动画
+  function triggerScramble() {
+    if (state.scrambleTimer) clearInterval(state.scrambleTimer);
+    state.isScrambling = true;
+    var ticks = 0;
+    var maxTicks = 18;
+
+    state.scrambleTimer = setInterval(function() {
+      ticks++;
+      playClickSound(900 + Math.random() * 600, 0.02, 0.035);
+      var lockedCount = Math.floor((ticks / maxTicks) * 8);
+      var targetData = getCurrentFrameData();
+      var frameChars = [];
+
+      for (var i = 0; i < 8; i++) {
+        if (i < lockedCount) {
+          frameChars.push(targetData.chars[i]);
+        } else {
+          if (targetData.chars[i] === '.') {
+            frameChars.push('.');
+          } else {
+            frameChars.push('' + Math.floor(Math.random() * 10));
+          }
+        }
+      }
+
+      renderTubes(frameChars, false, targetData.sepMode);
+
+      if (ticks >= maxTicks) {
+        clearInterval(state.scrambleTimer);
+        state.scrambleTimer = null;
+        state.isScrambling = false;
+        playClickSound(420, 0.06, 0.07);
+      }
+    }, 42);
+  }
+
+  // 主时间循环
+  var lastSec = -1;
+  setInterval(function() {
+    var nowMs = Date.now();
+
+    // 更新番茄钟倒计时
+    if (state.mode === 'timer' && state.timerRunning) {
+      var delta = (nowMs - state.timerLastTick) / 1000;
+      state.timerRemainSec -= delta;
+      if (state.timerRemainSec <= 0) {
+        state.timerRemainSec = 0;
+        state.timerRunning = false;
+        document.getElementById('btnSubAction').textContent = '▶ 开始';
+        setTheme('crimson');
+        triggerScramble();
+        showToast('TIME UP // WORLD LINE SHIFT!');
+      }
+    }
+    state.timerLastTick = nowMs;
+
+    if (state.isScrambling) return;
+
+    var frame = getCurrentFrameData();
+    renderTubes(frame.chars, frame.blinkDim, frame.sepMode);
+
+    // 整秒滴答音效
+    var sec = Math.floor(nowMs / 1000);
+    if (sec !== lastSec) {
+      lastSec = sec;
+      if (state.mode === 'clock' || (state.mode === 'timer' && state.timerRunning)) {
+        playClickSound(1400, 0.015, 0.018);
+      }
+    }
+  }, 60);
+
+  // 切换模式
+  function setMode(newMode) {
+    state.mode = newMode;
+    var pills = document.querySelectorAll('.btn-pill[data-mode]');
+    for (var i = 0; i < pills.length; i++) {
+      pills[i].classList.toggle('active', pills[i].getAttribute('data-mode') === newMode);
+    }
+
+    var btnSub = document.getElementById('btnSubAction');
+    var btnReset = document.getElementById('btnTimerReset');
+    btnReset.style.display = 'none';
+
+    if (newMode === 'clock') {
+      statusLabel.textContent = 'DIVERGENCE METER // ' + (state.is24H ? '24H CLOCK' : '12H CLOCK');
+      btnSub.textContent = state.is24H ? '切换 12H' : '切换 24H';
+    } else if (newMode === 'divergence') {
+      var wl = WORLD_LINES[state.worldLineIdx];
+      statusLabel.textContent = 'WORLD LINE // ' + wl.name;
+      btnSub.textContent = '切换世界线';
+    } else if (newMode === 'date') {
+      statusLabel.textContent = 'CHRONO METER // DATE';
+      btnSub.textContent = '刷新校准';
+    } else if (newMode === 'timer') {
+      statusLabel.textContent = 'LAB TIMER // 25:00 FOCUS';
+      btnSub.textContent = state.timerRunning ? '⏸ 暂停' : '▶ 开始';
+      btnReset.style.display = 'inline-block';
+    }
+
+    triggerScramble();
+  }
+
+  // 切换主题
+  function setTheme(themeName) {
+    if (themeName === 'orange') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', themeName);
+    }
+    var swatches = document.querySelectorAll('.swatch');
+    for (var i = 0; i < swatches.length; i++) {
+      swatches[i].classList.toggle('active', swatches[i].getAttribute('data-theme') === themeName);
+    }
+  }
+
+  // 全屏切换
+  function toggleFullscreen() {
+    var doc = document;
+    var docEl = doc.documentElement;
+    var req = docEl.requestFullscreen || docEl.webkitRequestFullScreen || docEl.mozRequestFullScreen;
+    var exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen;
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement) {
+      if (req) req.call(docEl);
+    } else {
+      if (exit) exit.call(doc);
+    }
+  }
+
+  // HUD 控制台开关与自动隐身
+  var idleTimer = null;
+  function resetIdleTimer() {
+    hudTrigger.classList.remove('idle-hidden');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function() {
+      if (!controlDock.classList.contains('open')) {
+        hudTrigger.classList.add('idle-hidden');
+      }
+    }, 3500);
+  }
+  resetIdleTimer();
+
+  function toggleDock(forceOpen) {
+    var open = (typeof forceOpen === 'boolean') ? forceOpen : !controlDock.classList.contains('open');
+    controlDock.classList.toggle('open', open);
+    hudTrigger.classList.toggle('active', open);
+    resetIdleTimer();
+  }
+
+  hudTrigger.addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleDock();
+  });
+
+  document.getElementById('chassisBar').addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleDock();
+  });
+
+  document.getElementById('dockClose').addEventListener('click', function() {
+    toggleDock(false);
+  });
+
+  // 绑定模式按钮
+  var modeBtns = document.querySelectorAll('.btn-pill[data-mode]');
+  for (var m = 0; m < modeBtns.length; m++) {
+    modeBtns[m].addEventListener('click', function() {
+      setMode(this.getAttribute('data-mode'));
+    });
+  }
+
+  // 世界线变动按钮
+  document.getElementById('btnScramble').addEventListener('click', function() {
+    if (state.mode === 'divergence') {
+      state.worldLineIdx = (state.worldLineIdx + 1) % WORLD_LINES.length;
+      statusLabel.textContent = 'WORLD LINE // ' + WORLD_LINES[state.worldLineIdx].name;
+    }
+    triggerScramble();
+  });
+
+  // 子功能按钮
+  document.getElementById('btnSubAction').addEventListener('click', function() {
+    if (state.mode === 'clock') {
+      state.is24H = !state.is24H;
+      setMode('clock');
+      showToast(state.is24H ? '24-HOUR FORMAT' : '12-HOUR FORMAT');
+    } else if (state.mode === 'divergence') {
+      state.worldLineIdx = (state.worldLineIdx + 1) % WORLD_LINES.length;
+      statusLabel.textContent = 'WORLD LINE // ' + WORLD_LINES[state.worldLineIdx].name;
+      triggerScramble();
+    } else if (state.mode === 'date') {
+      triggerScramble();
+    } else if (state.mode === 'timer') {
+      state.timerRunning = !state.timerRunning;
+      state.timerLastTick = Date.now();
+      this.textContent = state.timerRunning ? '⏸ 暂停' : '▶ 开始';
+      playClickSound(600, 0.04, 0.06);
+    }
+  });
+
+  // 番茄钟重置
+  document.getElementById('btnTimerReset').addEventListener('click', function() {
+    state.timerRunning = false;
+    state.timerRemainSec = state.timerTotalSec;
+    document.getElementById('btnSubAction').textContent = '▶ 开始';
+    triggerScramble();
+  });
+
+  // 主题切换绑定
+  var swatches = document.querySelectorAll('.swatch');
+  for (var s = 0; s < swatches.length; s++) {
+    swatches[s].addEventListener('click', function() {
+      setTheme(this.getAttribute('data-theme'));
+      playClickSound(750, 0.03, 0.05);
+    });
+  }
+
+  // 音效开关
+  document.getElementById('btnSound').addEventListener('click', function() {
+    state.soundEnabled = !state.soundEnabled;
+    this.textContent = state.soundEnabled ? '🔊 音效开' : '🔇 音效关';
+    this.classList.toggle('active', state.soundEnabled);
+    if (state.soundEnabled) playClickSound(880, 0.05, 0.08);
+  });
+
+  // 亮度调节
+  var dimLevels = ['100%', '70%', '40%'];
+  var dimFilters = ['brightness(1)', 'brightness(0.7)', 'brightness(0.4)'];
+  document.getElementById('btnDim').addEventListener('click', function() {
+    state.brightnessLevel = (state.brightnessLevel + 1) % 3;
+    this.textContent = '🔆 ' + dimLevels[state.brightnessLevel];
+    stage.style.filter = dimFilters[state.brightnessLevel];
+  });
+
+  // 全屏按钮
+  document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
+
+  // 灯管区域交互：单击触发变动/切换，双击切换时钟/世界线，长按全屏
+  var lastTap = 0;
+  var pressTimer = null;
+  var longPressed = false;
+  var tubesDeck = document.getElementById('tubesDeck');
+
+  tubesDeck.addEventListener('touchstart', function() {
+    resetIdleTimer();
+    longPressed = false;
+    pressTimer = setTimeout(function() {
+      longPressed = true;
+      toggleFullscreen();
+    }, 520);
+  }, { passive: true });
+
+  tubesDeck.addEventListener('touchend', function() {
+    clearTimeout(pressTimer);
+  });
+
+  tubesDeck.addEventListener('click', function(e) {
+    e.stopPropagation();
+    resetIdleTimer();
+    if (longPressed) return;
+    if (controlDock.classList.contains('open')) {
+      toggleDock(false);
+      return;
+    }
+
+    var now = Date.now();
+    if (now - lastTap < 300) {
+      // 双击切换 时钟 / 世界线
+      setMode(state.mode === 'divergence' ? 'clock' : 'divergence');
+    } else {
+      if (state.mode === 'divergence') {
+        state.worldLineIdx = (state.worldLineIdx + 1) % WORLD_LINES.length;
+        statusLabel.textContent = 'WORLD LINE // ' + WORLD_LINES[state.worldLineIdx].name;
+      } else if (state.mode === 'timer') {
+        state.timerRunning = !state.timerRunning;
+        state.timerLastTick = Date.now();
+        document.getElementById('btnSubAction').textContent = state.timerRunning ? '⏸ 暂停' : '▶ 开始';
+      }
+      triggerScramble();
+    }
+    lastTap = now;
+  });
+
+  // 电脑端键盘快捷键支持
+  document.addEventListener('keydown', function(e) {
+    resetIdleTimer();
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (state.mode === 'divergence') {
+        state.worldLineIdx = (state.worldLineIdx + 1) % WORLD_LINES.length;
+        statusLabel.textContent = 'WORLD LINE // ' + WORLD_LINES[state.worldLineIdx].name;
+      }
+      triggerScramble();
+    } else if (e.key === '1') setMode('clock');
+    else if (e.key === '2') setMode('divergence');
+    else if (e.key === '3') setMode('date');
+    else if (e.key === '4') setMode('timer');
+    else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+    else if (e.key === 'm' || e.key === 'M') toggleDock();
+  });
+
+  // 开机启动仪式
+  triggerScramble();
+})();
+</script>
+</body>
+</html>
