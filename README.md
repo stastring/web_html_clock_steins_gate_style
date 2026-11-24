@@ -1,5 +1,8 @@
 # web_html_clock_steins_gate_style
 # DIVERGENCE METER // FG-204 (Steins;Gate Nixie Clock)
+bilibili:https://www.bilibili.com/video/BV1HQyZzfEcE/?spm_id_from=333.1387.list.card_archive.click&vd_source=381b2cb0274032b799c82ff1f3099521
+youtube:https://youtu.be/MnIZhC34NsQ?si=9afxaio3Qt-wxxeW
+https://youtu.be/PJgEANywrak?si=Gyt-AMcJqVhYqszt
 
 [简体中文](#简体中文) | [English](#english)
 
